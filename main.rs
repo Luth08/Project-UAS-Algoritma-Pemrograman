@@ -1,5 +1,3 @@
-// src/main.rs
-
 mod measurements;
 mod screens;
 mod db;
@@ -24,20 +22,18 @@ use std::sync::{Arc, Mutex};
 use serialport;
 
 
-// --- Definisi AppScreen ---
 #[derive(PartialEq)]
 enum AppScreen {
     Home,
     DataGraphics,
     Database,
     SensorConfiguration,
-    // Hapus ini: Lux, // Tidak digunakan lagi, jadi dihapus dari enum
 }
 
 pub enum AppEvent {
     NewtonRaphsonCalculated {
         akar: f64,
-        history: Vec<f64>, // Tetap ada di AppEvent karena dibutuhkan untuk update display di SensorConfigScreen
+        history: Vec<f64>,
     },
 }
 
@@ -67,7 +63,6 @@ struct MyApp {
 
 impl MyApp {
     fn new(cc: &CreationContext<'_>) -> Self {
-        // Konfigurasi style Egui
         let mut style = (*cc.egui_ctx.style()).clone();
         style.text_styles.insert(
             egui::TextStyle::Heading,
@@ -79,19 +74,16 @@ impl MyApp {
         );
         cc.egui_ctx.set_style(style);
 
-        // Inisialisasi MPSC channels untuk komunikasi antar thread
         let (photodiode_tx, photodiode_rx) = mpsc::channel();
         let (status_tx, status_rx) = mpsc::channel(); 
         let (app_event_tx, app_event_rx) = mpsc::channel(); 
         let start_time = Instant::now();
 
-        // Inisialisasi screen konfigurasi
         let sensor_config_screen = SensorConfigurationScreen::new();
         let initial_baud_rate = sensor_config_screen.baud_rate; 
         
         let status_tx_clone = status_tx.clone();
 
-        // Inisialisasi Measurements (Arc<Mutex<Measurements>>)
         let shared_measurements = Arc::new(Mutex::new(Measurements::new())); 
         let shared_newton_raphson_lux_measurements = Arc::new(Mutex::new(Measurements::new()));
 
@@ -101,9 +93,8 @@ impl MyApp {
         let app_event_tx_for_graphics = app_event_tx.clone();
 
 
-        // --- Thread untuk MEMBACA DATA DARI SERIAL PORT NYATA ---
         thread::spawn(move || {
-            let port_name = "COM4"; // <--- PASTIKAN INI ADALAH PORT ARDUINO ANDA YANG BENAR
+            let port_name = "COM4"; 
             let baud_rate = initial_baud_rate; 
 
             if status_tx_clone.send(format!("Mencoba membuka port: {}...", port_name)).is_err() { return; }
@@ -143,7 +134,7 @@ impl MyApp {
                                     }
                                 }
                             },
-                            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => { /* Tidak ada data untuk saat ini, lanjut polling */ },
+                            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {  },
                             Err(e) => {
                                 if status_tx_clone.send(format!("Serial Read ERROR: {:?}", e)).is_err() { return; }
                                 break; 
@@ -160,7 +151,6 @@ impl MyApp {
         });
 
 
-        // Inisialisasi struktur data dan layar aplikasi
         let max_data_points = 300; 
 
         Self {
@@ -191,21 +181,16 @@ impl MyApp {
 
 impl App for MyApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        // Terima pesan status serial baru dari channel
         while let Ok(msg) = self.serial_status_receiver.try_recv() {
             self.serial_status_message = msg;
             ctx.request_repaint(); 
         }
 
-        // Terima event dari komponen aplikasi lain
         while let Ok(event) = self.app_event_receiver.try_recv() {
             match event {
                 AppEvent::NewtonRaphsonCalculated { akar, history } => {
-                    // Update tampilan NR di SensorConfigurationScreen
                     self.sensor_configuration_screen.update_nr_display_data(akar, history.clone()); 
-                    // Simpan ke database (tetap sama)
                     
-                    // --- PERUBAHAN DI SINI: HANYA SIMPAN HASIL AKHIR (akar) KE DATABASE ---
                     let akar_for_db = akar; 
                     
                     std::thread::spawn(move || {
@@ -213,7 +198,6 @@ impl App for MyApp {
                         rt.block_on(async {
                             match db::connect_db().await {
                                 Ok(db) => {
-                                    // Panggil fungsi insert_newton_raphson_result yang hanya menerima 'akar'
                                     let _ = db::insert_newton_raphson_result(&db, akar_for_db, Vec::new()).await; 
                                     eprintln!("[DB Thread] Berhasil menyimpan hasil Newton-Raphson: {:.8}", akar_for_db);
                                 },
@@ -223,7 +207,6 @@ impl App for MyApp {
                             }
                         });
                     });
-                    // --- AKHIR PERUBAHAN ---
 
                     if self.current_screen == AppScreen::Database {
                         self.fetch_database_data(ctx, DatabaseDataType::NewtonRaphsonResults); 
@@ -234,35 +217,23 @@ impl App for MyApp {
         }
 
 
-        // Logic untuk fetching data database saat berpindah layar atau saat pilihan diubah
         if self.current_screen == AppScreen::Database && self.database_data.lock().unwrap().is_empty() {
              self.fetch_database_data(ctx, self.database_screen.current_display_type.clone());
         }
 
-        // Ambil data photodiode terbaru dari channel jika ada
         while let Ok(new_value) = self.photodiode_data_receiver.try_recv() {
             self.measurements.lock().unwrap().add_value(new_value); 
-            self.current_photodiode_value = new_value.y; // Ini adalah nilai scaled (0-1000) dari Arduino
+            self.current_photodiode_value = new_value.y; 
 
-            // --- Bagian Perhitungan Newton-Raphson untuk Lux ---
-            // Menggunakan MODEL POWER LAW: V_out = A * E^B
-            // Anda HARUS mengganti CALIB_A_POWER dan CALIB_B_POWER dengan hasil kalibrasi Anda!
-            
-            // Konstanta dari Arduino Anda (sesuaikan jika ada perubahan di Arduino)
-            const ARDUINO_MAX_VOLTAGE: f64 = 3.3; // maxVoltage di Arduino Anda
-            const ARDUINO_MAX_PHOTODIODE_VALUE: f64 = 1000.0; // maxPhotodiodeValue di Arduino Anda
+            const ARDUINO_MAX_VOLTAGE: f64 = 3.3; 
+            const ARDUINO_MAX_PHOTODIODE_VALUE: f64 = 1000.0; 
 
-            // Faktor skala untuk mengkonversi nilai 0-1000 dari Arduino kembali ke tegangan (V)
             let scale_factor_to_voltage = ARDUINO_MAX_VOLTAGE / ARDUINO_MAX_PHOTODIODE_VALUE;
-            let v_out_terukur = new_value.y * scale_factor_to_voltage; // Ini V_out yang terukur (dalam Volt)
+            let v_out_terukur = new_value.y * scale_factor_to_voltage; 
             
-            // KONSTANTA KALIBRASI UNTUK MODEL POWER LAW (V_out = A * E^B)
-            // Diambil dari SensorConfigurationScreen
             let calib_a_power = self.sensor_configuration_screen.calib_a_power;
             let calib_b_power = self.sensor_configuration_screen.calib_b_power;
             
-            // Fungsi f(E) = A * E^B - V_out_terukur
-            // Kita mencari E (Lux) di mana f(E) = 0
             let f = |lux_estimate: f64| -> f64 {
                 if lux_estimate <= 0.0 { 
                     return f64::MAX; 
@@ -270,7 +241,6 @@ impl App for MyApp {
                 calib_a_power * lux_estimate.powf(calib_b_power) - v_out_terukur
             };
 
-            // Turunan f'(E) = A * B * E^(B-1)
             let f_prime = |lux_estimate: f64| -> f64 {
                 if lux_estimate <= 0.0 {
                     return f64::MAX; 
@@ -278,22 +248,18 @@ impl App for MyApp {
                 calib_a_power * calib_b_power * lux_estimate.powf(calib_b_power - 1.0)
             };
 
-            // Parameter Newton-Raphson
-            // Diambil dari SensorConfigurationScreen
             let mut x0: f64 = self.sensor_configuration_screen.initial_guess_nr;
             let tolerance: f64 = self.sensor_configuration_screen.tolerance_nr;
-            let max_iterations: usize = self.sensor_configuration_screen.max_iterations_nr as usize; // Casting u32 ke usize
+            let max_iterations: usize = self.sensor_configuration_screen.max_iterations_nr as usize; 
             
             if x0 <= 0.0 {
                 eprintln!("[Newton-Raphson] Tebakan awal Lux ({}) tidak valid. Menggunakan 1.0.", x0);
                 x0 = 1.0;
             }
 
-            // Panggil fungsi Newton-Raphson
             let (lux_newton_raphson_result, history_newton_raphson_values) =
                 Measurements::newton_raphson(f, f_prime, x0, tolerance, max_iterations);
 
-            // Validasi dan penanganan hasil Newton-Raphson
             let final_lux_nr = if lux_newton_raphson_result.is_finite() && lux_newton_raphson_result >= 0.0 {
                 lux_newton_raphson_result
             } else {
@@ -305,16 +271,12 @@ impl App for MyApp {
             println!("Tegangan Output Terukur (V_out): {:.4} V", v_out_terukur);
             println!("Lux dari Newton-Raphson (Validasi): {:.2} Lux", final_lux_nr);
 
-            // Menambahkan hasil Lux NR ke data grafik NR
             self.newton_raphson_lux_measurements.lock().unwrap().add_value(
                 Value { x: new_value.x, y: final_lux_nr }
             );
 
-            // Simpan hasil Newton-Raphson ke database terpisah
-            // nr_history_for_display hanya untuk tampilan di SensorConfigurationScreen
             let nr_history_for_display: Vec<f64> = history_newton_raphson_values.into_iter().map(|v| v.y).collect();
             
-            // Kirim event ini untuk mengupdate tampilan NR di SensorConfigurationScreen
             if self.app_event_sender.send(AppEvent::NewtonRaphsonCalculated { 
                 akar: final_lux_nr, 
                 history: nr_history_for_display 
@@ -322,16 +284,13 @@ impl App for MyApp {
                 eprintln!("Gagal mengirim AppEvent::NewtonRaphsonCalculated ke SensorConfigurationScreen.");
             }
 
-            let photodiode_value_for_db = new_value.y; // Nilai mentah/scaled photodiode dari Arduino
+            let photodiode_value_for_db = new_value.y; 
 
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async {
                     if let Ok(db) = db::connect_db().await {
-                        // Simpan nilai mentah/scaled photodiode
                         let _ = db::insert_photodiode_data(&db, photodiode_value_for_db).await; 
-
-                        // Simpan HANYA HASIL AKHIR Lux dari Newton-Raphson ke koleksi newton_raphson_results
                         let _ = db::insert_newton_raphson_result(&db, final_lux_nr, Vec::new()).await; 
                     } else {
                          eprintln!("[DB Thread] Gagal terhubung ke database untuk menyimpan data photodiode/NR.");
@@ -341,7 +300,6 @@ impl App for MyApp {
 
         }
 
-        // --- TOP PANEL (Header Aplikasi) ---
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.add_space(10.0);
             ui.vertical_centered(|ui| {
@@ -350,7 +308,6 @@ impl App for MyApp {
             ui.add_space(10.0);
         });
 
-        // --- SIDE PANEL (Navigasi) ---
         SidePanel::left("side_panel")
             .exact_width(180.0)
             .frame(Frame::window(&ctx.style())
@@ -384,7 +341,6 @@ impl App for MyApp {
                 });
             });
 
-        // --- CENTRAL PANEL (Konten Utama Berdasarkan Layar yang Dipilih) ---
         CentralPanel::default()
             .frame(Frame::window(&ctx.style())
                 .fill(Color32::from_rgb(30, 30, 40)) 
@@ -402,7 +358,6 @@ impl App for MyApp {
                     AppScreen::SensorConfiguration => self.sensor_configuration_screen.show(ui),
                 }
 
-                // Area status bar di bagian bawah Central Panel
                 ui.add_space(10.0); 
                 ui.with_layout(Layout::bottom_up(egui::Align::LEFT), |ui_bottom| {
                     ui_bottom.label(RichText::new(format!("Status Serial: {}", self.serial_status_message))
@@ -429,11 +384,9 @@ impl App for MyApp {
     }
 }
 
-// Implementasi fungsi fetch_database_data di MyApp
 impl MyApp {
     fn fetch_database_data(&mut self, ctx: &Context, data_type: DatabaseDataType) {
         let database_data_arc = Arc::clone(&self.database_data);
-        // Kosongkan data cache terlebih dahulu untuk menunjukkan loading
         {
             let mut data = database_data_arc.lock().unwrap();
             data.clear();
@@ -476,9 +429,7 @@ impl MyApp {
 }
 
 
-// Fungsi main, titik masuk aplikasi
 fn main() -> eframe::Result<()> {
-    // Konfigurasi jendela native
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
             .with_inner_size([900.0, 700.0]) 
@@ -487,7 +438,6 @@ fn main() -> eframe::Result<()> {
         ..NativeOptions::default() 
     };
 
-    // Jalankan aplikasi eframe
     eframe::run_native(
         "Sistem Pemantauan Intensitas Cahaya Tanaman Selada (Lactuca sativa)", 
         native_options,
