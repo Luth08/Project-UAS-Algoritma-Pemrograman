@@ -1,15 +1,11 @@
-// src/screens/home_screen.rs
-
 use egui::{Ui, RichText, Color32};
 
 pub struct HomeScreen {
-    // button_clicked_count: i32, // Hapus ini karena counter dihapus
 }
 
 impl HomeScreen {
     pub fn new() -> Self {
         Self {
-            // button_clicked_count: 0, // Hapus ini
         }
     }
 
@@ -29,22 +25,20 @@ impl HomeScreen {
                     ui.heading(RichText::new("Status Intensitas Cahaya").color(Color32::WHITE).strong());
                     ui.add_space(15.0);
 
-                    // Logika warna dan status berdasarkan nilai photodiode
-                    // Asumsi: photodiode rendah = Terang, photodiode tinggi = Gelap
                     let photodiode_text_color = if current_photodiode_value < 300.0 {
-                        Color32::YELLOW // Sangat Terang
+                        Color32::YELLOW 
                     } else if current_photodiode_value < 600.0 {
-                        Color32::LIGHT_GREEN // Normal
+                        Color32::LIGHT_GREEN 
                     } else {
-                        Color32::from_rgb(100, 100, 200) // Gelap (biru gelap)
+                        Color32::from_rgb(100, 100, 200) 
                     };
 
                     let light_status_icon = if current_photodiode_value < 300.0 {
-                        "☀️" // Sangat Terang
+                        "☀️" 
                     } else if current_photodiode_value < 600.0 {
-                        "☁️" // Normal
+                        "☁️" 
                     } else {
-                        "🌙" // Gelap
+                        "🌙" 
                     };
 
                     let light_status_text = if current_photodiode_value < 300.0 {
@@ -74,8 +68,6 @@ impl HomeScreen {
                 .color(Color32::WHITE)
                 .size(18.0));
             ui.add_space(20.0);
-
-            // ui.button() dan ui.label() terkait counter dihapus di sini
 
             ui.add_space(40.0);
             ui.horizontal(|ui| {
