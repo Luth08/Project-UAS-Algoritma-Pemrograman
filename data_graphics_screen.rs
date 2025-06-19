@@ -1,19 +1,12 @@
-// src/screens/data_graphics_screen.rs
-
-use egui::{Color32, RichText, Ui}; // <--- Hapus ScrollArea dari sini
-use egui_plot::{Line, Plot, PlotPoints, Legend}; // <--- LineShape akan diimpor secara spesifik atau digunakan dengan path penuh
-use crate::measurements::Measurements; // <--- Import Measurements dan Value di sini
-// Hapus baris ini: use measurements::{Value}; // Redundan
-// Hapus baris ini: use std::sync::mpsc;
-// Hapus baris ini: use crate::AppEvent;
-use std::sync::{Arc, Mutex}; // Ini tetap dibutuhkan
-
-// Tambahkan import LineShape secara spesifik:
+use egui::{Color32, RichText, Ui}; 
+use egui_plot::{Line, Plot, PlotPoints, Legend}; 
+use crate::measurements::Measurements; 
+use std::sync::{Arc, Mutex}; 
 
 
 pub struct DataGraphicsScreen {
-    pub measurements: Arc<Mutex<Measurements>>, // Ini untuk nilai photodiode mentah/scaled
-    pub newton_raphson_lux_measurements: Arc<Mutex<Measurements>>, // Ini untuk hasil Lux dari NR
+    pub measurements: Arc<Mutex<Measurements>>, 
+    pub newton_raphson_lux_measurements: Arc<Mutex<Measurements>>, 
 }
 
 impl DataGraphicsScreen {
@@ -43,7 +36,6 @@ impl DataGraphicsScreen {
                 ui_scroll_content.heading(RichText::new("Analisis Data Sensor dan Numerik").color(Color32::WHITE).strong());
                 ui_scroll_content.add_space(15.0);
 
-                // --- Bagian Grafik Data Sensor PhotoDioda (nilai scaled) ---
                 ui_scroll_content.group(|ui| {
                     ui.add_space(5.0);
                     ui.heading(RichText::new("Grafik Nilai Sensor PhotoDioda").color(Color32::LIGHT_GREEN).strong());
@@ -82,7 +74,6 @@ impl DataGraphicsScreen {
 
                 ui_scroll_content.add_space(20.0);
 
-                // --- Bagian Grafik Perhitungan Newton-Raphson (Lux) ---
                 ui_scroll_content.group(|ui| {
                     ui.add_space(5.0);
                     ui.heading(RichText::new("Grafik Lux Hasil Newton-Raphson").color(Color32::LIGHT_BLUE).strong());
