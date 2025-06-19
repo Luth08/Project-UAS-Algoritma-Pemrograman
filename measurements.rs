@@ -1,17 +1,8 @@
-// src/measurements.rs
-
 #[derive(Clone)]
 pub struct Measurements {
     pub values: Vec<Value>,
     pub max_data_points: usize,
 }
-
-// HAPUS STRUKTUR INI, KARENA SUDAH ADA DI data_graphics_screen.rs
-// pub struct DataGraphicsScreen {
-//     pub measurements: Measurements,
-//     pub newtonraphson_results: Measurements, // Tambahkan ini
-//     pub newtonraphson_akar: f64,             // Jika ingin simpan akar
-// }
 
 #[derive(Clone, Copy)]
 pub struct Value {
@@ -27,28 +18,26 @@ impl Measurements {
         }
     }
 
-    // Fungsi Newton-Raphson yang akan mengembalikan akar dan riwayat iterasi
     pub fn newton_raphson<F, Fp>(f: F, fp: Fp, x0: f64, tol: f64, max_iter: usize) -> (f64, Vec<Value>)
     where
         F: Fn(f64) -> f64,
         Fp: Fn(f64) -> f64,
     {
         let mut x = x0;
-        let mut results_history = Vec::new(); // Menyimpan setiap nilai x pada setiap iterasi
-        results_history.push(Value { x: 0.0, y: x0 }); // Tambahkan tebakan awal sebagai iterasi 0
+        let mut results_history = Vec::new(); 
+        results_history.push(Value { x: 0.0, y: x0 }); 
 
         for i in 0..max_iter {
             let fx = f(x);
             let fpx = fp(x);
 
-            // Hindari pembagian dengan nol atau sangat mendekati nol
             if fpx.abs() < 1e-12 {
                 println!("Newton-Raphson: Turunan mendekati nol pada iterasi {}. Menghentikan.", i);
                 break;
             }
 
             let x_new = x - fx / fpx;
-            results_history.push(Value { x: (i + 1) as f64, y: x_new }); // Iterasi ke-i+1
+            results_history.push(Value { x: (i + 1) as f64, y: x_new }); 
 
             if (x_new - x).abs() < tol {
                 println!("Newton-Raphson: Konvergensi tercapai pada iterasi {}. x = {:.8}", i + 1, x_new);
