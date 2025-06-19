@@ -1,14 +1,8 @@
-// src/screens/database_screen.rs
-
 use egui::{RichText, Color32, Grid, ScrollArea};
 use mongodb::bson::Document;
-// Tambahkan import ini untuk menangani Bson::DateTime
 use mongodb::bson::Bson;
-// Hapus baris ini untuk menghilangkan warning "unused imports" dari chrono
-// use chrono::{DateTime, Utc, TimeZone}; // <--- Hapus baris ini!
 
 
-// Enum untuk memilih jenis data yang ditampilkan
 #[derive(PartialEq, Debug, Clone)]
 pub enum DatabaseDataType {
     PhotodiodeData,
@@ -22,7 +16,7 @@ pub struct DatabaseScreen {
 impl DatabaseScreen {
     pub fn new() -> Self {
         Self {
-            current_display_type: DatabaseDataType::PhotodiodeData, // Default menampilkan photodiode Data
+            current_display_type: DatabaseDataType::PhotodiodeData, 
         }
     }
 
@@ -33,7 +27,6 @@ impl DatabaseScreen {
             ui.add_space(15.0);
         });
 
-        // Pilihan untuk menampilkan data photodiode atau Newton-Raphson
         ui.horizontal(|ui_h| {
             ui_h.label(RichText::new("Tampilkan Data:").color(Color32::WHITE));
             ui_h.radio_value(&mut self.current_display_type, DatabaseDataType::PhotodiodeData, "Data photodiode");
@@ -83,7 +76,7 @@ impl DatabaseScreen {
                                     if let Some(bson_value) = doc.get("photodiode_value") {
                                         match bson_value {
                                             Bson::Double(v) => format!("{:.2}", v),
-                                            Bson::Int32(v) => format!("{:.0}", v), // Jika 0 disimpan sebagai Int32
+                                            Bson::Int32(v) => format!("{:.0}", v), 
                                             _ => "N/A (Tipe Data Tak Dikenal)".to_string(),
                                         }
                                     } else {
@@ -97,8 +90,6 @@ impl DatabaseScreen {
 
                             let timestamp_str = doc.get_datetime("timestamp")
                                 .map(|dt| {
-                                    // chrono::DateTime<chrono::Utc> sudah otomatis tersedia karena metode to_chrono()
-                                    // tidak memerlukan import eksplisit DateTime, Utc, atau TimeZone di sini.
                                     let utc_dt = dt.to_chrono();
                                     utc_dt.format("%Y-%m-%d %H:%M:%S UTC").to_string()
                                 })
