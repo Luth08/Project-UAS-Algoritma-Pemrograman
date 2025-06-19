@@ -1,65 +1,37 @@
-// src/screens/sensor_configuration_screen.rs
-
 use egui::{Ui, RichText, Color32, Grid, ScrollArea};
 use crate::measurements::Value;
-// use std::sync::mpsc; // Tidak lagi dibutuhkan karena nr_display_receiver dihapus
-// use crate::AppEvent; // Tidak lagi dibutuhkan karena nr_display_receiver dihapus
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 pub struct SensorConfigurationScreen {
-    // <<< HAPUS FIELD YANG TIDAK DIGUNAKAN INI >>>
-    // pub target_lux: f32,
-    // pub photodiode_raw_at_target: f32,
-    
-    // Konstanta Kalibrasi untuk Model Power Law (V_out = A * E^B)
     pub calib_a_power: f64, 
     pub calib_b_power: f64,
 
-    // Parameter Newton-Raphson
     pub initial_guess_nr: f64,
     pub tolerance_nr: f64,
     pub max_iterations_nr: u32,
     
-    // <<< HAPUS FIELD YANG TIDAK DIGUNAKAN INI >>>
-    // pub calibration_factor: f64, 
-    
-    // Konfigurasi Serial Port
     pub baud_rate: u32,
 
-    // <<< PERBAIKI INI: JADIKAN PUB UNTUK DIAKSES DARI LUAR >>>
     pub newton_raphson_iter_results: Vec<Value>,
     pub newton_raphson_akar: Option<f64>,
-    
-    // <<< HAPUS FIELD INI KARENA TIDAK DIGUNAKAN >>>
-    // #[serde(skip)]
-    // pub(crate) nr_display_receiver: Option<mpsc::Receiver<(f64, Vec<f64>)>>, 
 }
 
 impl SensorConfigurationScreen {
     pub fn new() -> Self {
         Self {
-            // <<< HAPUS INISIALISASI FIELD YANG TIDAK DIGUNAKAN INI >>>
-            // target_lux: 500.0,
-            // photodiode_raw_at_target: 100.0,
-            
-            calib_a_power: 0.0001, // GANTI DENGAN NILAI DEFAULT YANG MASUK AKAL DARI KALIBRASI AWAL ANDA!
+            calib_a_power: 0.0001, 
             calib_b_power: 1.05,   
 
             initial_guess_nr: 1.0, 
             tolerance_nr: 1e-6,    
             max_iterations_nr: 20, 
             
-            // <<< HAPUS INISIALISASI FIELD YANG TIDAK DIGUNAKAN INI >>>
-            // calibration_factor: 500000.0, 
-            
             baud_rate: 9600,
 
             newton_raphson_iter_results: Vec::new(),
             newton_raphson_akar: None,
-            // <<< HAPUS INISIALISASI FIELD YANG TIDAK DIGUNAKAN INI >>>
-            // nr_display_receiver: None,
         }
     }
 
@@ -81,7 +53,6 @@ impl SensorConfigurationScreen {
                     ui.add_space(30.0);
                 });
 
-                // --- Bagian Konfigurasi Kalibrasi Sensor (Model Power Law) ---
                 ui.group(|ui| {
                     ui.add_space(5.0);
                     ui.heading(RichText::new("Kalibrasi Sensor Photodiode (Model Power Law)").color(Color32::LIGHT_GREEN).strong());
@@ -102,25 +73,6 @@ impl SensorConfigurationScreen {
                                 .speed(0.01) 
                                 .fixed_decimals(2)); 
                             ui_grid.end_row();
-
-                            // <<< HAPUS INPUT UI UNTUK FIELD YANG TIDAK DIGUNAKAN INI >>>
-                            // ui_grid.label(RichText::new("Faktor Kalibrasi Lux Lama:").color(Color32::WHITE));
-                            // ui_grid.add(egui::DragValue::new(&mut self.calibration_factor)
-                            //     .speed(100.0)
-                            //     .suffix(" Lux * photodiode"));
-                            // ui_grid.end_row();
-
-                            // ui_grid.label(RichText::new("Target Lux (Opsional):").color(Color32::WHITE));
-                            // ui_grid.add(egui::DragValue::new(&mut self.target_lux)
-                            //     .speed(10.0)
-                            //     .suffix(" Lux"));
-                            // ui_grid.end_row();
-
-                            // ui_grid.label(RichText::new("Nilai photodiode Mentah pada Target Lux (Opsional):").color(Color32::WHITE));
-                            // ui_grid.add(egui::DragValue::new(&mut self.photodiode_raw_at_target)
-                            //     .speed(1.0)
-                            //     .suffix(" (0-1023)"));
-                            // ui_grid.end_row();
                         });
                     ui.add_space(10.0);
                     ui.label(RichText::new("Sesuaikan 'Konstanta A' dan 'Konstanta B' berdasarkan hasil kalibrasi Power Law Anda.").color(Color32::GRAY).italics());
@@ -129,7 +81,6 @@ impl SensorConfigurationScreen {
 
                 ui.add_space(30.0);
 
-                // --- Bagian Konfigurasi Serial Port ---
                 ui.group(|ui| {
                     ui.add_space(5.0);
                     ui.heading(RichText::new("Konfigurasi Serial Port").color(Color32::LIGHT_GREEN).strong());
@@ -154,7 +105,6 @@ impl SensorConfigurationScreen {
 
                 ui.add_space(30.0);
 
-                // --- Bagian Konfigurasi Newton-Raphson ---
                 ui.group(|ui| {
                     ui.add_space(5.0);
                     ui.heading(RichText::new("Konfigurasi Metode Newton-Raphson").color(Color32::LIGHT_BLUE).strong());
